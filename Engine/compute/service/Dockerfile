@@ -3,6 +3,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install required packages
 RUN apt-get update && \
+apt-get install vim -y && \
 apt-get install tzdata -y && \
 apt-get install python-pip python2.7 python-dev -y && \
 apt-get install liberasurecode-dev libpq-dev python-dev libxml2-dev -y && \
