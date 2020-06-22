@@ -9,6 +9,8 @@ import redis.clients.jedis.Jedis;
 
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -17,6 +19,9 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.slf4j.Logger;
+
+
+import com.google.common.cache.Cache;
 
 
 public class FunctionExecutionTask implements Runnable {
@@ -37,11 +42,16 @@ public class FunctionExecutionTask implements Runnable {
 	private FileDescriptor inputStreamFd = null;
 	private FileDescriptor outputStreamFd = null;
 	private FileDescriptor commandFd = null;
+	
+	private Cache<String, byte[]> cache;
+	
+	
+	
 
 	/*------------------------------------------------------------------------
 	 * CTOR
 	 * */
-	public FunctionExecutionTask(SBusDatagram dtg, Properties prop, Jedis redis, Function function, FileOutputStream functionLog, Logger logger) {
+	public FunctionExecutionTask(SBusDatagram dtg, Properties prop, Jedis redis, Function function, FileOutputStream functionLog, Logger logger, Cache<String, byte[]> cachemc) {
 		this.dtg_ = dtg;
 		this.prop_ = prop;
 		this.function_ = function;
@@ -49,6 +59,7 @@ public class FunctionExecutionTask implements Runnable {
 		this.functionLog_ = functionLog;
 		this.redis_ = redis;
 		
+		 this.cache = cachemc;   
 		
 		logger_.trace("Function execution task created");	
 	}
@@ -79,12 +90,44 @@ public class FunctionExecutionTask implements Runnable {
 		} catch (ParseException e) {
 			logger_.trace("Error parsing object headers, request metadata and parameters");
 		}
+		
+		
+		byte[] policy_binary=null;
+    	
+        try {
+
+  // TODO :   existe esto del Referer en las functions ??
+        	
+        	
+        String policyObject = req_md.get("Referer").split("/",6)[5]+ ".pol";
+        String myObject = req_md.get("Referer").split("/",6)[5];
+
+      
+       	if ( ( policy_binary = cache.getIfPresent(policyObject)) == null ) {
+       		InputStream in = swift.get(policyObject).getInputStream();
+    		cache.put(policyObject,in.readAllBytes());
+    		policy_binary = cache.getIfPresent(policyObject);
+       		
+//       		InputStream inaux = swift.get(myObject).getInputStream();
+//       		byte[] len = inaux.readAllBytes();
+//       		System.out.println("llegit  : "+len.length);
+        	}
+        } catch (IOException  e) {
+        	System.out.println("Error en lectura del fitxer de dades directament");
+        	e.printStackTrace();
+        } 
+		
+		
+		
+		
+		
+		
 		metadata = null;
 		logger_.trace("Got object input stream, request headers, object metadata and function parameters");
 		
 		this.api = new Api(redis_, prop_, request_headers, logger_);
 		this.ctx = new Context(inputStreamFd, outputStreamFd, functionParameters, functionLog_, commandFd, 
-						  	   object_metadata, request_headers, logger_, api.swift);
+						  	   object_metadata, request_headers, logger_, api.swift, policy_binary);
 	}
 
 	
