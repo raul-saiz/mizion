@@ -18,11 +18,14 @@ public class Context {
 	public Request request;
 	public Object object;
 	public Function function;
+	
+	
+	public byte [] policy;
 
 
 	public Context(FileDescriptor inputStreamFd, FileDescriptor outputStreamFd, Map<String, String> functionParameters, 
 				   FileOutputStream functionLog, FileDescriptor commandFd, Map<String, String> objectMd, 
-				   Map<String, String> reqMd, Logger localLog, Swift swift) 
+				   Map<String, String> reqMd, Logger localLog, Swift swift,  byte [] myPolicy) 
 	{	
 		String currentObject = reqMd.get("X-Container")+"/"+reqMd.get("X-Object");
 		
@@ -32,6 +35,9 @@ public class Context {
 		response = new Response(logger_);
 		request = new Request(commandFd, reqMd, response, logger_);
 		object = new Object(inputStreamFd, outputStreamFd, commandFd, objectMd, currentObject, request, response, swift, logger_);
+		
+		
+		policy = myPolicy;
 		
 		request.setObjectCtx(object);
 
